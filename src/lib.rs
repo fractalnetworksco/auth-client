@@ -1,8 +1,8 @@
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::uuid::Uuid;
-use thiserror::Error;
 use std::collections::HashSet;
+use thiserror::Error;
 
 /// Scopes of access
 #[derive(Clone, Debug, Hash, PartialOrd, Ord, PartialEq, Eq)]
@@ -54,7 +54,11 @@ impl<'r> FromRequest<'r> for Auth {
     type Error = AuthError;
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let token = match req.headers().get_one("Authorization").map(|h| h.to_string()) {
+        let token = match req
+            .headers()
+            .get_one("Authorization")
+            .map(|h| h.to_string())
+        {
             Some(s) => s,
             None => return Outcome::Failure((Status::Unauthorized, AuthError::TokenMissing)),
         };
@@ -68,5 +72,3 @@ impl<'r> FromRequest<'r> for Auth {
         })
     }
 }
-
-
