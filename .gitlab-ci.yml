@@ -1,0 +1,65 @@
+# set up cache to speed up builds
+cache:
+  key: $CI_COMMIT_REF_SLUG
+  paths:
+    - .cargo/
+    - .cache/sccache
+
+stages:
+  - test
+  - build
+  - deploy
+
+# make sure that formatting is correct.
+rustfmt:
+  image: registry.gitlab.com/fractalnetworks/images/rust:stable
+  stage: test
+  allow_failure: true
+  script:
+    - ci-setup-cargo
+    - cargo fmt -- --check
+
+# make sure there are no issues with the code.
+clippy:
+  image: registry.gitlab.com/fractalnetworks/images/rust:stable
+  stage: test
+  allow_failure: true
+  script:
+    - ci-setup-cargo
+    - cargo clippy
+
+# run unit tests.
+test:
+  image: registry.gitlab.com/fractalnetworks/images/rust:stable
+  stage: test
+  script:
+    - ci-setup-cargo
+    - cargo test
+
+# generate rust html documentation
+rustdoc:
+  image: registry.gitlab.com/fractalnetworks/images/rust:stable
+  stage: build
+  script:
+    - ci-setup-cargo
+    - cargo doc --all-features --no-deps
+  artifacts:
+    paths:
+      - target/doc
+    expire_in: 1 week
+
+# publish binary, docs and API docs to gitlab pages.
+pages:
+  image: registry.gitlab.com/fractalnetworks/images/pages
+  stage: deploy
+  dependencies:
+    - rustdoc
+  script:
+    - mkdir public
+    - mv target/doc public/doc
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+  only:
+    - master
