@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rocket = "0.5.0-rc.1"
+jsonwebtoken = "7.2.0"
+rocket = { version = "0.5.0-rc.1", features = ["uuid"] }
+thiserror = "1.0.30"
