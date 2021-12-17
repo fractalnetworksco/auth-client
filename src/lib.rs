@@ -1,10 +1,10 @@
+use jwks_client::error::Error as JwksError;
+use jwks_client::keyset::KeyStore;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::uuid::Uuid;
 use std::collections::HashSet;
 use thiserror::Error;
-use jwks_client::keyset::KeyStore;
-use jwks_client::error::Error as JwksError;
 
 pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
     KeyStore::new_from(url.to_string()).await
@@ -77,7 +77,9 @@ impl<'r> FromRequest<'r> for Auth {
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let store = match req.rocket().state::<KeyStore>() {
             Some(store) => store,
-            None => return Outcome::Failure((Status::InternalServerError, AuthError::MissingKeyStore)),
+            None => {
+                return Outcome::Failure((Status::InternalServerError, AuthError::MissingKeyStore))
+            }
         };
         let token = match req
             .headers()
