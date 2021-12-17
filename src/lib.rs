@@ -89,6 +89,10 @@ impl<'r> FromRequest<'r> for Auth {
             Some(s) => s,
             None => return Outcome::Failure((Status::Unauthorized, AuthError::TokenMissing)),
         };
+        let token = match token.strip_prefix("Bearer ") {
+            Some(token) => token,
+            None => return Outcome::Failure((Status::Unauthorized, AuthError::TokenMissing)),
+        };
         let auth = match Auth::from_jwt(store, &token) {
             Ok(auth) => auth,
             Err(e) => return Outcome::Failure((Status::Unauthorized, e)),
