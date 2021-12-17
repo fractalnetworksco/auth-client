@@ -59,7 +59,7 @@ impl Auth {
     }
 
     pub fn from_jwt(key_store: &KeyStore, jwt: &str) -> Result<Auth, AuthError> {
-        let jwt = key_store.decode(jwt)?;
+        let jwt = key_store.verify(jwt)?;
         let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
         let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
 
