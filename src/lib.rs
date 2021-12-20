@@ -5,6 +5,8 @@ use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::uuid::Uuid;
 use std::collections::HashSet;
 use thiserror::Error;
+#[cfg(feature = "openapi")]
+use rocket_okapi::request::OpenApiFromRequest;
 
 pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
     KeyStore::new_from(url.to_string()).await
@@ -40,6 +42,7 @@ pub enum Scope {
 
 /// Generic request context. May contain idempotency token, request ID, a JWT
 /// pulled from the cookies, or a token pulled from the header.
+#[cfg_attr(feature = "openapi", derive(OpenApiFromRequest))]
 pub struct Auth {
     account: Uuid,
     scope: Option<Scope>,
