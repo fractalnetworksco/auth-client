@@ -3,10 +3,10 @@ use jwks_client::keyset::KeyStore;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::uuid::Uuid;
-use std::collections::HashSet;
-use thiserror::Error;
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
+use std::collections::HashSet;
+use thiserror::Error;
 
 pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
     KeyStore::new_from(url.to_string()).await
