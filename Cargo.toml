@@ -11,6 +11,7 @@ rocket = { version = "0.5.0-rc.1", features = ["uuid"] }
 thiserror = "1.0.30"
 tokio = "1.15.0"
 rocket_okapi = { version = "0.8.0-rc.1", optional = true }
+uuid = "0.8.2"
 
 [features]
 openapi = ["rocket_okapi"]

@@ -6,6 +6,7 @@ use rocket::serde::uuid::Uuid;
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
 use std::collections::HashSet;
+use std::str::FromStr;
 use thiserror::Error;
 
 pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
@@ -19,6 +20,8 @@ pub enum AuthError {
     MissingKeyStore,
     #[error("Error")]
     DecodeError(#[from] JwksError),
+    #[error("Error parsing UUID")]
+    UuidDecodeError(#[from] uuid::Error),
     #[error("Error in JWT payload")]
     PayloadError,
     #[error("JWT is wrong")]
@@ -46,6 +49,7 @@ pub enum Scope {
 pub struct Auth {
     account: Uuid,
     scope: Option<Scope>,
+    idempotency_token: Option<Uuid>,
 }
 
 impl Auth {
@@ -55,6 +59,10 @@ impl Auth {
 
     pub fn scope(&self) -> &Option<Scope> {
         &self.scope
+    }
+
+    pub fn idempotency(&self) -> Option<Uuid> {
+        self.idempotency_token.clone()
     }
 
     pub fn allowed(&self, scope: Scope) -> Result<(), AuthError> {
@@ -69,7 +77,14 @@ impl Auth {
         Ok(Auth {
             account,
             scope: None,
+            idempotency_token: None,
         })
+    }
+
+    pub fn parse_idempotency_token(&mut self, token: &str) -> Result<(), AuthError> {
+        let token = Uuid::from_str(token)?;
+        self.idempotency_token = Some(token);
+        Ok(())
     }
 }
 
@@ -96,10 +111,19 @@ impl<'r> FromRequest<'r> for Auth {
             Some(token) => token,
             None => return Outcome::Failure((Status::Unauthorized, AuthError::TokenMissing)),
         };
-        let auth = match Auth::from_jwt(store, &token) {
+        let mut auth = match Auth::from_jwt(store, &token) {
             Ok(auth) => auth,
             Err(e) => return Outcome::Failure((Status::Unauthorized, e)),
         };
+
+        // get idempotency token
+        match req.headers().get_one("Idempotency-Token") {
+            Some(token) => {
+                auth.parse_idempotency_token(&token.to_string());
+            }
+            None => {}
+        }
+
         Outcome::Success(auth)
     }
 }
