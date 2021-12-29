@@ -46,13 +46,13 @@ pub enum Scope {
 /// Generic request context. May contain idempotency token, request ID, a JWT
 /// pulled from the cookies, or a token pulled from the header.
 #[cfg_attr(feature = "openapi", derive(OpenApiFromRequest))]
-pub struct Auth {
+pub struct UserContext {
     account: Uuid,
     scope: Option<Scope>,
     idempotency_token: Option<Uuid>,
 }
 
-impl Auth {
+impl UserContext {
     pub fn account(&self) -> Uuid {
         self.account.clone()
     }
@@ -69,12 +69,12 @@ impl Auth {
         Ok(())
     }
 
-    pub fn from_jwt(key_store: &KeyStore, jwt: &str) -> Result<Auth, AuthError> {
+    pub fn from_jwt(key_store: &KeyStore, jwt: &str) -> Result<UserContext, AuthError> {
         let jwt = key_store.verify(jwt)?;
         let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
         let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
 
-        Ok(Auth {
+        Ok(UserContext {
             account,
             scope: None,
             idempotency_token: None,
@@ -89,7 +89,7 @@ impl Auth {
 }
 
 #[rocket::async_trait]
-impl<'r> FromRequest<'r> for Auth {
+impl<'r> FromRequest<'r> for UserContext {
     type Error = AuthError;
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
@@ -111,7 +111,7 @@ impl<'r> FromRequest<'r> for Auth {
             Some(token) => token,
             None => return Outcome::Failure((Status::Unauthorized, AuthError::TokenMissing)),
         };
-        let mut auth = match Auth::from_jwt(store, &token) {
+        let mut auth = match UserContext::from_jwt(store, &token) {
             Ok(auth) => auth,
             Err(e) => return Outcome::Failure((Status::Unauthorized, e)),
         };
