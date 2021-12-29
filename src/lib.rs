@@ -1,11 +1,13 @@
 use jwks_client::error::Error as JwksError;
 use jwks_client::keyset::KeyStore;
 use rocket::http::Status;
+use rocket::outcome;
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::uuid::Uuid;
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
 use std::collections::HashSet;
+use std::net::IpAddr;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -50,6 +52,7 @@ pub struct UserContext {
     account: Uuid,
     scope: Option<Scope>,
     idempotency_token: Option<Uuid>,
+    ip_addr: IpAddr,
 }
 
 impl UserContext {
@@ -65,11 +68,19 @@ impl UserContext {
         self.idempotency_token.clone()
     }
 
+    pub fn ip(&self) -> IpAddr {
+        self.ip_addr
+    }
+
     pub fn allowed(&self, scope: Scope) -> Result<(), AuthError> {
         Ok(())
     }
 
-    pub fn from_jwt(key_store: &KeyStore, jwt: &str) -> Result<UserContext, AuthError> {
+    pub fn from_jwt(
+        key_store: &KeyStore,
+        jwt: &str,
+        ip_addr: IpAddr,
+    ) -> Result<UserContext, AuthError> {
         let jwt = key_store.verify(jwt)?;
         let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
         let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
@@ -78,6 +89,7 @@ impl UserContext {
             account,
             scope: None,
             idempotency_token: None,
+            ip_addr,
         })
     }
 
@@ -93,6 +105,11 @@ impl<'r> FromRequest<'r> for UserContext {
     type Error = AuthError;
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let ip = match IpAddr::from_request(req).await {
+            Outcome::Success(ip) => ip,
+            _ => unimplemented!(),
+        };
+
         let store = match req.rocket().state::<KeyStore>() {
             Some(store) => store,
             None => {
@@ -111,7 +128,7 @@ impl<'r> FromRequest<'r> for UserContext {
             Some(token) => token,
             None => return Outcome::Failure((Status::Unauthorized, AuthError::TokenMissing)),
         };
-        let mut auth = match UserContext::from_jwt(store, &token) {
+        let mut auth = match UserContext::from_jwt(store, &token, ip) {
             Ok(auth) => auth,
             Err(e) => return Outcome::Failure((Status::Unauthorized, e)),
         };
