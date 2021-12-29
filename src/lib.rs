@@ -12,7 +12,7 @@ use std::str::FromStr;
 use thiserror::Error;
 use url::Url;
 
-const AUTH_TOKEN_LENGTH: usize = 20;
+const AUTH_TOKEN_LENGTH: usize = 40;
 
 pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
     KeyStore::new_from(url.to_string()).await
