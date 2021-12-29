@@ -2,13 +2,11 @@ use jwks_client::error::Error as JwksError;
 use jwks_client::keyset::KeyStore;
 use reqwest::Client;
 use rocket::http::Status;
-use rocket::outcome;
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::uuid::Uuid;
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
-use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::HashSet;
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::str::FromStr;
 use thiserror::Error;
@@ -71,10 +69,12 @@ impl AuthConfig {
         }
     }
 }
+
 #[derive(Serialize)]
 struct CheckTokenRequest {
     token: String,
 }
+
 #[derive(Deserialize)]
 struct CheckTokenResponse {
     uuid: Uuid,
@@ -91,6 +91,7 @@ pub struct UserContext {
 }
 
 impl UserContext {
+    /// Get request user's account UUID
     pub fn account(&self) -> Uuid {
         self.account.clone()
     }
@@ -99,18 +100,21 @@ impl UserContext {
         &self.scope
     }
 
+    /// Get request idempotency token
     pub fn idempotency(&self) -> Option<Uuid> {
         self.idempotency_token.clone()
     }
 
+    /// Get request IP
     pub fn ip(&self) -> IpAddr {
         self.ip_addr
     }
 
-    pub fn allowed(&self, scope: Scope) -> Result<(), AuthError> {
+    pub fn allowed(&self, _scope: Scope) -> Result<(), AuthError> {
         Ok(())
     }
 
+    /// Try to validate token
     pub async fn from_token(
         config: &AuthConfig,
         token: &str,
