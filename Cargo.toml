@@ -7,13 +7,14 @@ edition = "2021"
 jsonwebtoken = "7.2.0"
 jwks-client = { git = "https://github.com/jfbilodeau/jwks-client" }
 reqwest = { version = "0.11.8", features = ["json"] }
-rocket = { version = "0.5.0-rc.1", features = ["uuid"] }
+rocket = { version = "0.5.0-rc.1", features = ["uuid"], optional = true }
 thiserror = "1.0.30"
 tokio = "1.15.0"
 rocket_okapi = { version = "0.8.0-rc.1", optional = true }
-uuid = "0.8.2"
+uuid = { version = "0.8.2", features = ["serde"] }
 url = "2.2.2"
 serde = { version = "1.0.132", features = ["derive"] }
 
 [features]
-openapi = ["rocket_okapi"]
+default = []
+openapi = ["rocket_okapi", "rocket"]

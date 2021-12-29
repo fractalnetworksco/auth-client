@@ -1,9 +1,10 @@
 use jwks_client::error::Error as JwksError;
 use jwks_client::keyset::KeyStore;
 use reqwest::Client;
+#[cfg(feature = "rocket")]
 use rocket::http::Status;
+#[cfg(feature = "rocket")]
 use rocket::request::{FromRequest, Outcome, Request};
-use rocket::serde::uuid::Uuid;
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,7 @@ use std::net::IpAddr;
 use std::str::FromStr;
 use thiserror::Error;
 use url::Url;
+use uuid::Uuid;
 
 const AUTH_TOKEN_LENGTH: usize = 40;
 
@@ -164,6 +166,7 @@ impl UserContext {
     }
 }
 
+#[cfg(feature = "rocket")]
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for UserContext {
     type Error = AuthError;
