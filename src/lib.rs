@@ -1,5 +1,6 @@
 use jwks_client::error::Error as JwksError;
 use jwks_client::keyset::KeyStore;
+use reqwest::Client;
 use rocket::http::Status;
 use rocket::outcome;
 use rocket::request::{FromRequest, Outcome, Request};
@@ -10,6 +11,9 @@ use std::collections::HashSet;
 use std::net::IpAddr;
 use std::str::FromStr;
 use thiserror::Error;
+use url::Url;
+
+const AUTH_TOKEN_LENGTH: usize = 20;
 
 pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
     KeyStore::new_from(url.to_string()).await
@@ -18,8 +22,6 @@ pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
 /// Errors that can happen when validating authentication
 #[derive(Error, Debug)]
 pub enum AuthError {
-    #[error("KeyStore missing")]
-    MissingKeyStore,
     #[error("Error")]
     DecodeError(#[from] JwksError),
     #[error("Error parsing UUID")]
@@ -34,6 +36,8 @@ pub enum AuthError {
     TokenExpired,
     #[error("JWT missing scope")]
     Unauthorized,
+    #[error("Config missing")]
+    MissingConfig,
 }
 
 /// Scopes of access
@@ -43,6 +47,24 @@ pub enum Scope {
     Link,
     Account,
     Network,
+}
+
+pub struct AuthConfig {
+    keystore: KeyStore,
+    client: Client,
+    api: Url,
+    jwt: String,
+}
+
+impl AuthConfig {
+    pub fn new(keystore: KeyStore, client: Client, api: Url, jwt: String) -> AuthConfig {
+        AuthConfig {
+            keystore,
+            client,
+            api,
+            jwt,
+        }
+    }
 }
 
 /// Generic request context. May contain idempotency token, request ID, a JWT
@@ -76,21 +98,25 @@ impl UserContext {
         Ok(())
     }
 
-    pub fn from_jwt(
-        key_store: &KeyStore,
+    pub fn from_token(
+        config: &AuthConfig,
         jwt: &str,
         ip_addr: IpAddr,
     ) -> Result<UserContext, AuthError> {
-        let jwt = key_store.verify(jwt)?;
-        let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
-        let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
+        if jwt.len() == AUTH_TOKEN_LENGTH {
+            unimplemented!();
+        } else {
+            let jwt = config.keystore.verify(jwt)?;
+            let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
+            let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
 
-        Ok(UserContext {
-            account,
-            scope: None,
-            idempotency_token: None,
-            ip_addr,
-        })
+            Ok(UserContext {
+                account,
+                scope: None,
+                idempotency_token: None,
+                ip_addr,
+            })
+        }
     }
 
     pub fn parse_idempotency_token(&mut self, token: &str) -> Result<(), AuthError> {
@@ -110,12 +136,13 @@ impl<'r> FromRequest<'r> for UserContext {
             _ => unimplemented!(),
         };
 
-        let store = match req.rocket().state::<KeyStore>() {
-            Some(store) => store,
+        let config = match req.rocket().state::<AuthConfig>() {
+            Some(config) => config,
             None => {
-                return Outcome::Failure((Status::InternalServerError, AuthError::MissingKeyStore))
+                return Outcome::Failure((Status::InternalServerError, AuthError::MissingConfig))
             }
         };
+
         let token = match req
             .headers()
             .get_one("Authorization")
@@ -128,7 +155,7 @@ impl<'r> FromRequest<'r> for UserContext {
             Some(token) => token,
             None => return Outcome::Failure((Status::Unauthorized, AuthError::TokenMissing)),
         };
-        let mut auth = match UserContext::from_jwt(store, &token, ip) {
+        let mut auth = match UserContext::from_token(config, &token, ip) {
             Ok(auth) => auth,
             Err(e) => return Outcome::Failure((Status::Unauthorized, e)),
         };
