@@ -7,6 +7,7 @@ use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::uuid::Uuid;
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -38,6 +39,8 @@ pub enum AuthError {
     Unauthorized,
     #[error("Config missing")]
     MissingConfig,
+    #[error("Error making request: {0:}")]
+    RequestError(#[from] reqwest::Error),
 }
 
 /// Scopes of access
@@ -65,6 +68,10 @@ impl AuthConfig {
             jwt,
         }
     }
+}
+#[derive(Serialize)]
+struct CheckTokenRequest {
+    token: String,
 }
 
 /// Generic request context. May contain idempotency token, request ID, a JWT
@@ -98,15 +105,25 @@ impl UserContext {
         Ok(())
     }
 
-    pub fn from_token(
+    pub async fn from_token(
         config: &AuthConfig,
-        jwt: &str,
+        token: &str,
         ip_addr: IpAddr,
     ) -> Result<UserContext, AuthError> {
-        if jwt.len() == AUTH_TOKEN_LENGTH {
-            unimplemented!();
+        if token.len() == AUTH_TOKEN_LENGTH {
+            let request = CheckTokenRequest {
+                token: token.to_string(),
+            };
+            let response = config
+                .client
+                .post(&config.api.to_string())
+                .header("Authorization", format!("Bearer {}", &config.jwt))
+                .json(&request)
+                .send()
+                .await?;
+            unimplemented!()
         } else {
-            let jwt = config.keystore.verify(jwt)?;
+            let jwt = config.keystore.verify(token)?;
             let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
             let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
 
@@ -155,7 +172,7 @@ impl<'r> FromRequest<'r> for UserContext {
             Some(token) => token,
             None => return Outcome::Failure((Status::Unauthorized, AuthError::TokenMissing)),
         };
-        let mut auth = match UserContext::from_token(config, &token, ip) {
+        let mut auth = match UserContext::from_token(config, &token, ip).await {
             Ok(auth) => auth,
             Err(e) => return Outcome::Failure((Status::Unauthorized, e)),
         };
