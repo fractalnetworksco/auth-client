@@ -7,7 +7,7 @@ use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::uuid::Uuid;
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashSet;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -41,6 +41,8 @@ pub enum AuthError {
     MissingConfig,
     #[error("Error making request: {0:}")]
     RequestError(#[from] reqwest::Error),
+    #[error("Auth token invalid")]
+    InvalidAuthToken,
 }
 
 /// Scopes of access
@@ -72,6 +74,10 @@ impl AuthConfig {
 #[derive(Serialize)]
 struct CheckTokenRequest {
     token: String,
+}
+#[derive(Deserialize)]
+struct CheckTokenResponse {
+    uuid: Uuid,
 }
 
 /// Generic request context. May contain idempotency token, request ID, a JWT
@@ -121,7 +127,18 @@ impl UserContext {
                 .json(&request)
                 .send()
                 .await?;
-            unimplemented!()
+
+            if response.status().is_success() {
+                let response = response.json::<CheckTokenResponse>().await?;
+                Ok(UserContext {
+                    account: response.uuid,
+                    scope: None,
+                    idempotency_token: None,
+                    ip_addr,
+                })
+            } else {
+                Err(AuthError::InvalidAuthToken)
+            }
         } else {
             let jwt = config.keystore.verify(token)?;
             let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
