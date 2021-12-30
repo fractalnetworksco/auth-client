@@ -1,5 +1,5 @@
 use jwks_client::error::Error as JwksError;
-use jwks_client::keyset::KeyStore;
+pub use jwks_client::keyset::KeyStore;
 use reqwest::Client;
 #[cfg(feature = "rocket")]
 use rocket::http::Status;
@@ -54,21 +54,27 @@ pub enum Scope {
     Network,
 }
 
-pub struct AuthConfig {
-    keystore: KeyStore,
+pub struct ApiKeyConfig {
     client: Client,
     api: Url,
     jwt: String,
 }
 
+pub struct AuthConfig {
+    keystore: KeyStore,
+    apikey: Option<ApiKeyConfig>,
+}
+
 impl AuthConfig {
-    pub fn new(keystore: KeyStore, client: Client, api: Url, jwt: String) -> AuthConfig {
+    pub fn new(keystore: KeyStore) -> AuthConfig {
         AuthConfig {
             keystore,
-            client,
-            api,
-            jwt,
+            apikey: None,
         }
+    }
+
+    pub fn apikey_config(&mut self, client: Client, api: Url, jwt: String) {
+        self.apikey = Some(ApiKeyConfig { client, api, jwt });
     }
 }
 
@@ -122,41 +128,43 @@ impl UserContext {
         token: &str,
         ip_addr: IpAddr,
     ) -> Result<UserContext, AuthError> {
-        if token.len() == AUTH_TOKEN_LENGTH {
-            let request = CheckTokenRequest {
-                token: token.to_string(),
-            };
-            let response = config
-                .client
-                .post(&config.api.to_string())
-                .header("Authorization", format!("Bearer {}", &config.jwt))
-                .json(&request)
-                .send()
-                .await?;
+        if let Some(api_key_config) = &config.apikey {
+            if token.len() == AUTH_TOKEN_LENGTH {
+                let request = CheckTokenRequest {
+                    token: token.to_string(),
+                };
+                let response = api_key_config
+                    .client
+                    .post(&api_key_config.api.to_string())
+                    .header("Authorization", format!("Bearer {}", &api_key_config.jwt))
+                    .json(&request)
+                    .send()
+                    .await?;
 
-            if response.status().is_success() {
-                let response = response.json::<CheckTokenResponse>().await?;
-                Ok(UserContext {
-                    account: response.uuid,
-                    scope: None,
-                    idempotency_token: None,
-                    ip_addr,
-                })
-            } else {
-                Err(AuthError::InvalidAuthToken)
+                if response.status().is_success() {
+                    let response = response.json::<CheckTokenResponse>().await?;
+                    return Ok(UserContext {
+                        account: response.uuid,
+                        scope: None,
+                        idempotency_token: None,
+                        ip_addr,
+                    });
+                } else {
+                    return Err(AuthError::InvalidAuthToken);
+                }
             }
-        } else {
-            let jwt = config.keystore.verify(token)?;
-            let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
-            let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
-
-            Ok(UserContext {
-                account,
-                scope: None,
-                idempotency_token: None,
-                ip_addr,
-            })
         }
+
+        let jwt = config.keystore.verify(token)?;
+        let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
+        let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
+
+        Ok(UserContext {
+            account,
+            scope: None,
+            idempotency_token: None,
+            ip_addr,
+        })
     }
 
     pub fn parse_idempotency_token(&mut self, token: &str) -> Result<(), AuthError> {
