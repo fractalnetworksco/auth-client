@@ -8,8 +8,10 @@ use rocket::request::{FromRequest, Outcome, Request};
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
+use std::sync::Arc;
 use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
@@ -56,21 +58,32 @@ pub enum Scope {
     Network,
 }
 
+#[derive(Clone, Debug)]
 pub struct ApiKeyConfig {
     client: Client,
     api: Url,
     jwt: String,
 }
 
+#[derive(Clone)]
 pub struct AuthConfig {
-    keystore: KeyStore,
+    keystore: Arc<KeyStore>,
     apikey: Option<ApiKeyConfig>,
+}
+
+impl fmt::Debug for AuthConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AuthConfig")
+            .field("keystore", &"keystore")
+            .field("apikey", &self.apikey)
+            .finish()
+    }
 }
 
 impl AuthConfig {
     pub fn new(keystore: KeyStore) -> AuthConfig {
         AuthConfig {
-            keystore,
+            keystore: Arc::new(keystore),
             apikey: None,
         }
     }
