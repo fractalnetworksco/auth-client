@@ -1,5 +1,6 @@
 use jwks_client::error::Error as JwksError;
 pub use jwks_client::keyset::KeyStore;
+use log::*;
 use reqwest::Client;
 #[cfg(feature = "rocket")]
 use rocket::http::Status;
@@ -12,11 +13,15 @@ use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
+/// Expected size for auth tokens.
 const AUTH_TOKEN_LENGTH: usize = 40;
+/// Warn about expiring System scope JWTs when valid for less than 24 hours.
+const SYSTEM_CONTEXT_WARNING_THRESHOLD: u64 = 60 * 60 * 24;
 
 pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
     KeyStore::new_from(url.to_string()).await
@@ -290,8 +295,30 @@ impl SystemContext {
             return Err(AuthError::ScopeError);
         }
 
+        if jwt
+            .expired_time(SystemTime::now() + Duration::from_secs(SYSTEM_CONTEXT_WARNING_THRESHOLD))
+            != Some(true)
+        {
+            warn!("SystemContext token will expire in one day");
+        }
+
         Ok(SystemContext {
             account,
+            scope: None,
+            idempotency_token: None,
+            ip_addr,
+        })
+    }
+
+    /// This method will pretend to check a token, but always accept it without
+    /// inspecting it. Only meant for usage while debugging.
+    pub async fn danger_insecure_accept(
+        _config: &AuthConfig,
+        _token: &str,
+        ip_addr: IpAddr,
+    ) -> Result<SystemContext, AuthError> {
+        Ok(SystemContext {
+            account: Uuid::from_str("aeaaa28d-f1b7-4d8a-9257-797cff0f77c1").unwrap(),
             scope: None,
             idempotency_token: None,
             ip_addr,
