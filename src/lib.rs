@@ -52,6 +52,8 @@ pub enum AuthError {
     InvalidAuthToken,
     #[error("Scope is wrong")]
     ScopeError,
+    #[error("Missing KeyStore")]
+    MissingKeyStore,
 }
 
 /// Scopes of access
@@ -72,8 +74,10 @@ pub struct ApiKeyConfig {
 
 #[derive(Clone)]
 pub struct AuthConfig {
-    keystore: Arc<KeyStore>,
+    keystore: Option<Arc<KeyStore>>,
     apikey: Option<ApiKeyConfig>,
+    #[cfg(insecure_stub)]
+    insecure_stub: bool,
 }
 
 impl fmt::Debug for AuthConfig {
@@ -86,15 +90,40 @@ impl fmt::Debug for AuthConfig {
 }
 
 impl AuthConfig {
-    pub fn new(keystore: KeyStore) -> AuthConfig {
+    pub fn new() -> AuthConfig {
         AuthConfig {
-            keystore: Arc::new(keystore),
+            keystore: None,
             apikey: None,
+            #[cfg(insecure_stub)]
+            insecure_stub: self.insecure_stub,
         }
     }
 
-    pub fn apikey_config(&mut self, client: Client, api: Url, jwt: String) {
-        self.apikey = Some(ApiKeyConfig { client, api, jwt });
+    pub fn with_keystore(self, keystore: KeyStore) -> Self {
+        AuthConfig {
+            keystore: Some(Arc::new(keystore)),
+            apikey: self.apikey,
+            #[cfg(insecure_stub)]
+            insecure_stub: self.insecure_stub,
+        }
+    }
+
+    pub fn with_apikey_config(self, client: Client, api: Url, jwt: String) -> Self {
+        AuthConfig {
+            keystore: self.keystore,
+            apikey: Some(ApiKeyConfig { client, api, jwt }),
+            #[cfg(insecure_stub)]
+            insecure_stub: self.insecure_stub,
+        }
+    }
+
+    #[cfg(insecure_stub)]
+    pub fn with_insecure_stub(self, stub: bool) -> Self {
+        AuthConfig {
+            keystore: self.keystore,
+            apikey: self.apikey,
+            insecure_stub: stub,
+        }
     }
 }
 
@@ -148,6 +177,18 @@ impl UserContext {
         token: &str,
         ip_addr: IpAddr,
     ) -> Result<UserContext, AuthError> {
+        #[cfg(insecure_stub)]
+        if config.insecure_stub {
+            if let Ok(account) = Uuid::from_str(token) {
+                return Ok(UserContext {
+                    account,
+                    scope: None,
+                    idempotency_token: None,
+                    ip_addr,
+                });
+            }
+        }
+
         if let Some(api_key_config) = &config.apikey {
             if token.len() == AUTH_TOKEN_LENGTH {
                 let request = CheckTokenRequest {
@@ -175,16 +216,20 @@ impl UserContext {
             }
         }
 
-        let jwt = config.keystore.verify(token)?;
-        let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
-        let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
+        if let Some(keystore) = &config.keystore {
+            let jwt = keystore.verify(token)?;
+            let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
+            let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
 
-        Ok(UserContext {
-            account,
-            scope: None,
-            idempotency_token: None,
-            ip_addr,
-        })
+            Ok(UserContext {
+                account,
+                scope: None,
+                idempotency_token: None,
+                ip_addr,
+            })
+        } else {
+            Err(AuthError::MissingKeyStore)
+        }
     }
 
     pub fn parse_idempotency_token(&mut self, token: &str) -> Result<(), AuthError> {
@@ -282,32 +327,48 @@ impl SystemContext {
         token: &str,
         ip_addr: IpAddr,
     ) -> Result<SystemContext, AuthError> {
-        let jwt = config.keystore.verify(token)?;
-        let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
-        let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
-        let scopes = jwt
-            .payload()
-            .get_str("scope")
-            .ok_or(AuthError::PayloadError)?;
-        let scope_vec: Vec<&str> = scopes.split_whitespace().collect();
-
-        if !scope_vec.contains(&"system") {
-            return Err(AuthError::ScopeError);
+        #[cfg(insecure_stub)]
+        if config.insecure_stub {
+            if let Ok(account) = Uuid::from_str(token) {
+                return Ok(SystemContext {
+                    account,
+                    scope: None,
+                    idempotency_token: None,
+                    ip_addr,
+                });
+            }
         }
 
-        if jwt
-            .expired_time(SystemTime::now() + Duration::from_secs(SYSTEM_CONTEXT_WARNING_THRESHOLD))
-            != Some(true)
-        {
-            warn!("SystemContext token will expire in one day");
-        }
+        if let Some(keystore) = &config.keystore {
+            let jwt = keystore.verify(token)?;
+            let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
+            let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
+            let scopes = jwt
+                .payload()
+                .get_str("scope")
+                .ok_or(AuthError::PayloadError)?;
+            let scope_vec: Vec<&str> = scopes.split_whitespace().collect();
 
-        Ok(SystemContext {
-            account,
-            scope: None,
-            idempotency_token: None,
-            ip_addr,
-        })
+            if !scope_vec.contains(&"system") {
+                return Err(AuthError::ScopeError);
+            }
+
+            if jwt.expired_time(
+                SystemTime::now() + Duration::from_secs(SYSTEM_CONTEXT_WARNING_THRESHOLD),
+            ) != Some(true)
+            {
+                warn!("SystemContext token will expire in one day");
+            }
+
+            Ok(SystemContext {
+                account,
+                scope: None,
+                idempotency_token: None,
+                ip_addr,
+            })
+        } else {
+            Err(AuthError::MissingKeyStore)
+        }
     }
 
     /// This method will pretend to check a token, but always accept it without

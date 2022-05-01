@@ -17,3 +17,4 @@ log = "0.4.16"
 [features]
 default = []
 openapi = ["rocket_okapi", "rocket"]
+insecure-stub = []
