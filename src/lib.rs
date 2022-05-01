@@ -72,11 +72,11 @@ pub struct ApiKeyConfig {
     jwt: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct AuthConfig {
     keystore: Option<Arc<KeyStore>>,
     apikey: Option<ApiKeyConfig>,
-    #[cfg(insecure_stub)]
+    #[cfg(feature = "insecure-stub")]
     insecure_stub: bool,
 }
 
@@ -91,19 +91,14 @@ impl fmt::Debug for AuthConfig {
 
 impl AuthConfig {
     pub fn new() -> AuthConfig {
-        AuthConfig {
-            keystore: None,
-            apikey: None,
-            #[cfg(insecure_stub)]
-            insecure_stub: self.insecure_stub,
-        }
+        AuthConfig::default()
     }
 
     pub fn with_keystore(self, keystore: KeyStore) -> Self {
         AuthConfig {
             keystore: Some(Arc::new(keystore)),
             apikey: self.apikey,
-            #[cfg(insecure_stub)]
+            #[cfg(feature = "insecure-stub")]
             insecure_stub: self.insecure_stub,
         }
     }
@@ -112,12 +107,12 @@ impl AuthConfig {
         AuthConfig {
             keystore: self.keystore,
             apikey: Some(ApiKeyConfig { client, api, jwt }),
-            #[cfg(insecure_stub)]
+            #[cfg(feature = "insecure-stub")]
             insecure_stub: self.insecure_stub,
         }
     }
 
-    #[cfg(insecure_stub)]
+    #[cfg(feature = "insecure-stub")]
     pub fn with_insecure_stub(self, stub: bool) -> Self {
         AuthConfig {
             keystore: self.keystore,
@@ -177,7 +172,7 @@ impl UserContext {
         token: &str,
         ip_addr: IpAddr,
     ) -> Result<UserContext, AuthError> {
-        #[cfg(insecure_stub)]
+        #[cfg(feature = "insecure-stub")]
         if config.insecure_stub {
             if let Ok(account) = Uuid::from_str(token) {
                 return Ok(UserContext {
@@ -327,7 +322,7 @@ impl SystemContext {
         token: &str,
         ip_addr: IpAddr,
     ) -> Result<SystemContext, AuthError> {
-        #[cfg(insecure_stub)]
+        #[cfg(feature = "insecure-stub")]
         if config.insecure_stub {
             if let Ok(account) = Uuid::from_str(token) {
                 return Ok(SystemContext {
