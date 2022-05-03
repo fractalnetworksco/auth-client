@@ -12,9 +12,12 @@ rocket_okapi = { version = "0.8.0-rc.1", optional = true }
 uuid = { version = "0.8.2", features = ["serde"] }
 url = "2.2.2"
 serde = { version = "1.0.132", features = ["derive"] }
-log = "0.4.16"
+log = "0.4.17"
 
 [features]
 default = []
 openapi = ["rocket_okapi", "rocket"]
 insecure-stub = []
+
+[workspace]
+members = [".", "tool"]
