@@ -348,10 +348,8 @@ impl SystemContext {
                 return Err(AuthError::ScopeError);
             }
 
-            if jwt.expired_time(
-                SystemTime::now() + Duration::from_secs(SYSTEM_CONTEXT_WARNING_THRESHOLD),
-            ) != Some(true)
-            {
+            let expiry = SystemTime::now() + Duration::from_secs(SYSTEM_CONTEXT_WARNING_THRESHOLD);
+            if jwt.expired_time(expiry) != Some(true) {
                 warn!("SystemContext token will expire in one day");
             }
 
