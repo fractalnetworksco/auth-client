@@ -8,7 +8,7 @@ jwks-client = { git = "https://github.com/jfbilodeau/jwks-client" }
 reqwest = { version = "0.11.8", features = ["json"] }
 rocket = { version = "0.5.0-rc", features = ["uuid"], optional = true }
 thiserror = "1.0.30"
-rocket_okapi = { version = "0.8.0-rc.1", optional = true }
+#rocket_okapi = { version = "0.8.0-rc.1", optional = true }
 uuid = { version = "1.0.0", features = ["serde"] }
 url = "2.2.2"
 serde = { version = "1.0.132", features = ["derive"] }
@@ -16,7 +16,7 @@ log = "0.4.17"
 
 [features]
 default = []
-openapi = ["rocket_okapi", "rocket"]
+#openapi = ["rocket_okapi", "rocket"]
 insecure-stub = []
 
 [workspace]
