@@ -12,7 +12,7 @@ stages:
 
 # make sure that formatting is correct.
 rustfmt:
-  image: registry.gitlab.com/fractalnetworks/images/rust:stable
+  image: registry.gitlab.com/fractalnetworks/images/rust-stable:v1
   stage: test
   allow_failure: true
   script:
@@ -21,7 +21,7 @@ rustfmt:
 
 # make sure there are no issues with the code.
 clippy:
-  image: registry.gitlab.com/fractalnetworks/images/rust:stable
+  image: registry.gitlab.com/fractalnetworks/images/rust-stable:v1
   stage: test
   allow_failure: true
   script:
@@ -30,7 +30,7 @@ clippy:
 
 # run unit tests.
 test:
-  image: registry.gitlab.com/fractalnetworks/images/rust:stable
+  image: registry.gitlab.com/fractalnetworks/images/rust-stable:v1
   stage: test
   script:
     - ci-setup-cargo
@@ -38,7 +38,7 @@ test:
 
 # generate rust html documentation
 rustdoc:
-  image: registry.gitlab.com/fractalnetworks/images/rust:stable
+  image: registry.gitlab.com/fractalnetworks/images/rust-stable:v1
   stage: build
   script:
     - ci-setup-cargo
@@ -50,7 +50,7 @@ rustdoc:
 
 # publish binary, docs and API docs to gitlab pages.
 pages:
-  image: registry.gitlab.com/fractalnetworks/images/pages
+  image: registry.gitlab.com/fractalnetworks/images/pages:v1
   stage: deploy
   dependencies:
     - rustdoc
