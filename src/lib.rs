@@ -355,7 +355,7 @@ impl SystemContext {
             debug!("Expiry: {expiry:?}");
             debug!("JWT expiry: {:?}", jwt.payload().expiry());
             if jwt.expired_time(expiry) == Some(true) {
-                warn!("SystemContext token will expire in one day");
+                warn!("SystemContext token will expire in one week");
             }
 
             Ok(SystemContext {
