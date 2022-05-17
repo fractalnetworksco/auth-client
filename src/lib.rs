@@ -125,12 +125,12 @@ impl AuthConfig {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct CheckTokenRequest {
     token: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct CheckTokenResponse {
     uuid: Uuid,
 }
