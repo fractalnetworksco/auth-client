@@ -138,7 +138,7 @@ struct CheckTokenResponse {
 /// Generic request context. May contain idempotency token, request ID, a JWT
 /// pulled from the cookies, or a token pulled from the header.
 #[cfg_attr(feature = "openapi", derive(OpenApiFromRequest))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UserContext {
     account: Uuid,
     scope: Option<Scope>,
@@ -299,7 +299,7 @@ impl<'r> FromRequest<'r> for UserContext {
 /// pulled from the cookies, or a token pulled from the header. This context
 /// requires 'system' claim.
 #[cfg_attr(feature = "openapi", derive(OpenApiFromRequest))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SystemContext {
     account: Uuid,
     scope: Option<Scope>,
