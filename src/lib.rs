@@ -18,6 +18,9 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
+#[cfg(test)]
+mod tests;
+
 /// Expected size for auth tokens.
 const AUTH_TOKEN_LENGTH: usize = 40;
 /// Warn about expiring System scope JWTs when valid for less than one week.
@@ -233,6 +236,16 @@ impl UserContext {
         self.idempotency_token = Some(token);
         Ok(())
     }
+
+    #[cfg(test)]
+    pub fn new_for_test(account: Uuid, ip_addr: IpAddr, idempotency_token: Option<Uuid>) -> Self {
+        UserContext {
+            account,
+            ip_addr,
+            scope: None,
+            idempotency_token,
+        }
+    }
 }
 
 #[cfg(feature = "rocket")]
@@ -388,6 +401,16 @@ impl SystemContext {
         let token = Uuid::from_str(token)?;
         self.idempotency_token = Some(token);
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub fn new_for_test(account: Uuid, ip_addr: IpAddr, idempotency_token: Option<Uuid>) -> Self {
+        SystemContext {
+            account,
+            ip_addr,
+            scope: None,
+            idempotency_token,
+        }
     }
 }
 

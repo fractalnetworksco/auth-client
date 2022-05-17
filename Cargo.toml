@@ -9,10 +9,10 @@ reqwest = { version = "0.11.8", features = ["json"] }
 rocket = { version = "0.5.0-rc", features = ["uuid"], optional = true }
 thiserror = "1.0.30"
 #rocket_okapi = { version = "0.8.0-rc.1", optional = true }
-uuid = { version = "1.0.0", features = ["serde"] }
-url = "2.2.2"
-serde = { version = "1.0.132", features = ["derive"] }
-log = "0.4.17"
+uuid = { version = ">0.8.2, <1.1.0", features = ["serde", "v4"] }
+url = "2.2"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
 
 [features]
 default = []
@@ -21,3 +21,7 @@ insecure-stub = []
 
 [workspace]
 members = [".", "tool"]
+
+[dev-dependencies]
+matches = "0.1.9"
+tokio = { version = "1.18.2", features = ["macros"] }
