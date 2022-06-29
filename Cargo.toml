@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-jwks-client = { git = "https://github.com/jfbilodeau/jwks-client" }
-reqwest = { version = "0.11.8", features = ["json"] }
+jwks-client = { git = "https://gitlab.com/fractalnetworks/libraries/jwks-client" }
+reqwest = { version = "0.11.11", default-features = false, features = ["json", "rustls-tls"] }
 rocket = { version = "0.5.0-rc", features = ["uuid"], optional = true }
 thiserror = "1.0.30"
 #rocket_okapi = { version = "0.8.0-rc.1", optional = true }
