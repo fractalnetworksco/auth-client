@@ -514,3 +514,43 @@ impl<'r> FromRequest<'r> for SystemContext {
         Outcome::Success(auth)
     }
 }
+
+#[cfg(feature = "static-tokens")]
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum StaticTokenError {
+    #[error("Missing Token")]
+    MissingToken,
+    #[error("Error parsing static token UUID: {0:}")]
+    UuidParse(#[from] uuid::Error),
+    #[error("Unexpected extra part while parsing static token: {0:}")]
+    ExtraTokenParts(String),
+}
+
+/// Convenience CLI wrapper type for static tokens.
+#[cfg(feature = "static-tokens")]
+#[derive(Clone, Debug)]
+pub struct StaticToken {
+    pub token: String,
+    pub account: Uuid,
+}
+
+#[cfg(feature = "static-tokens")]
+impl std::str::FromStr for StaticToken {
+    type Err = StaticTokenError;
+    fn from_str(from: &str) -> Result<Self, Self::Err> {
+        let mut parts = from.split(":");
+        let token = parts
+            .next()
+            .ok_or(StaticTokenError::MissingToken)?
+            .to_string();
+        let account = if let Some(account) = parts.next() {
+            account.parse()?
+        } else {
+            Uuid::default()
+        };
+        if let Some(part) = parts.next() {
+            return Err(StaticTokenError::ExtraTokenParts(part.to_string()));
+        }
+        Ok(StaticToken { token, account })
+    }
+}
