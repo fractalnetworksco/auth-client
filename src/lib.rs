@@ -141,6 +141,10 @@ impl AuthConfig {
             keystore: self.keystore,
             apikey: self.apikey,
             insecure_stub: stub,
+            #[cfg(feature = "static-tokens")]
+            static_user: self.static_user,
+            #[cfg(feature = "static-tokens")]
+            static_system: self.static_system,
         }
     }
 
