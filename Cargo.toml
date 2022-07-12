@@ -18,6 +18,7 @@ log = "0.4"
 default = []
 #openapi = ["rocket_okapi", "rocket"]
 insecure-stub = []
+static-tokens = []
 
 [workspace]
 members = [".", "tool"]

@@ -9,6 +9,8 @@ use rocket::request::{FromRequest, Outcome, Request};
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "static-tokens")]
+use std::collections::HashMap;
 use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -77,9 +79,19 @@ pub struct ApiKeyConfig {
 
 #[derive(Clone, Default)]
 pub struct AuthConfig {
+    /// Keystore is a parsed JWKS document that is used to validate JWTs.
     keystore: Option<Arc<KeyStore>>,
+    /// API Key Config allows making a request to an external service to validate API keys.
     apikey: Option<ApiKeyConfig>,
+    /// Static user tokens resolve to a UUID.
+    #[cfg(feature = "static-tokens")]
+    static_user: HashMap<String, Uuid>,
+    /// Static system tokens resolve to a UUID.
+    #[cfg(feature = "static-tokens")]
+    static_system: HashMap<String, Uuid>,
     #[cfg(feature = "insecure-stub")]
+    /// Enabling this turns off authentication altogether, simply parsing passed tokens
+    /// as UUIDs and accepting them as valid.
     insecure_stub: bool,
 }
 
@@ -101,6 +113,10 @@ impl AuthConfig {
         AuthConfig {
             keystore: Some(Arc::new(keystore)),
             apikey: self.apikey,
+            #[cfg(feature = "static-tokens")]
+            static_user: self.static_user,
+            #[cfg(feature = "static-tokens")]
+            static_system: self.static_system,
             #[cfg(feature = "insecure-stub")]
             insecure_stub: self.insecure_stub,
         }
@@ -110,6 +126,10 @@ impl AuthConfig {
         AuthConfig {
             keystore: self.keystore,
             apikey: Some(ApiKeyConfig { client, api, jwt }),
+            #[cfg(feature = "static-tokens")]
+            static_user: self.static_user,
+            #[cfg(feature = "static-tokens")]
+            static_system: self.static_system,
             #[cfg(feature = "insecure-stub")]
             insecure_stub: self.insecure_stub,
         }
@@ -122,6 +142,16 @@ impl AuthConfig {
             apikey: self.apikey,
             insecure_stub: stub,
         }
+    }
+
+    #[cfg(feature = "static-tokens")]
+    pub fn add_static_user(&mut self, token: &str, uuid: &Uuid) {
+        self.static_user.insert(token.to_string(), uuid.clone());
+    }
+
+    #[cfg(feature = "static-tokens")]
+    pub fn add_static_system(&mut self, token: &str, uuid: &Uuid) {
+        self.static_system.insert(token.to_string(), uuid.clone());
     }
 }
 
@@ -176,6 +206,16 @@ impl UserContext {
         token: &str,
         ip_addr: IpAddr,
     ) -> Result<UserContext, AuthError> {
+        #[cfg(feature = "static-tokens")]
+        if let Some(uuid) = config.static_user.get(token) {
+            return Ok(UserContext {
+                account: uuid.clone(),
+                scope: None,
+                idempotency_token: None,
+                ip_addr,
+            });
+        }
+
         #[cfg(feature = "insecure-stub")]
         if config.insecure_stub {
             if let Ok(account) = Uuid::from_str(token) {
@@ -337,6 +377,16 @@ impl SystemContext {
         token: &str,
         ip_addr: IpAddr,
     ) -> Result<SystemContext, AuthError> {
+        #[cfg(feature = "static-tokens")]
+        if let Some(uuid) = config.static_system.get(token) {
+            return Ok(SystemContext {
+                account: uuid.clone(),
+                scope: None,
+                idempotency_token: None,
+                ip_addr,
+            });
+        }
+
         #[cfg(feature = "insecure-stub")]
         if config.insecure_stub {
             if let Ok(account) = Uuid::from_str(token) {
