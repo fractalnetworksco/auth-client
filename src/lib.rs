@@ -534,6 +534,34 @@ pub struct StaticToken {
     pub account: Uuid,
 }
 
+impl StaticToken {
+    /// New static token from token and account Uuid.
+    pub fn new(token: String, account: Uuid) -> Self {
+        StaticToken {
+            token,
+            account,
+        }
+    }
+
+    /// New static token from token with random account Uuid.
+    pub fn new_random(token: String) -> Self {
+        StaticToken {
+            token,
+            account: Uuid::new_v4(),
+        }
+    }
+
+    /// Get token.
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+
+    /// Get account Uuid.
+    pub fn account(&self) -> &Uuid {
+        &self.account
+    }
+}
+
 #[cfg(feature = "static-tokens")]
 impl std::str::FromStr for StaticToken {
     type Err = StaticTokenError;
