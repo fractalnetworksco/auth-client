@@ -534,13 +534,11 @@ pub struct StaticToken {
     pub account: Uuid,
 }
 
+#[cfg(feature = "static-tokens")]
 impl StaticToken {
     /// New static token from token and account Uuid.
     pub fn new(token: String, account: Uuid) -> Self {
-        StaticToken {
-            token,
-            account,
-        }
+        StaticToken { token, account }
     }
 
     /// New static token from token with random account Uuid.
