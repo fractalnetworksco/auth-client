@@ -2,6 +2,10 @@
 name = "fractal-auth-client"
 version = "0.1.0"
 edition = "2021"
+authors = ["Patrick Elsen <patrick@fractalnetworks.co>"]
+description = "Authentication client library for Fractal Networks."
+license = "AGPL-3.0-only"
+repository = "https://github.com/fractalnetworksco/auth-client"
 
 [dependencies]
 jwks-client = { git = "https://gitlab.com/fractalnetworks/libraries/jwks-client" }
