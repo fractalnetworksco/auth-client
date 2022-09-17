@@ -3,9 +3,10 @@ pub use jwks_client::keyset::KeyStore;
 use log::*;
 use reqwest::Client;
 #[cfg(feature = "rocket")]
-use rocket::http::Status;
-#[cfg(feature = "rocket")]
-use rocket::request::{FromRequest, Outcome, Request};
+use rocket::{
+    http::Status,
+    request::{FromRequest, Outcome, Request},
+};
 #[cfg(feature = "openapi")]
 use rocket_okapi::request::OpenApiFromRequest;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,8 @@ use thiserror::Error;
 use url::Url;
 use uuid::Uuid;
 
+#[cfg(feature = "axum")]
+mod axum;
 #[cfg(test)]
 mod tests;
 
