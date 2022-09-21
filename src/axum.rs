@@ -32,9 +32,15 @@ where
             .await
             .map_err(|err| err.into_response())?;
 
-        let context = UserContext::from_token(&config, bearer.token(), addr.ip())
+        let mut context = UserContext::from_token(&config, bearer.token(), addr.ip())
             .await
             .map_err(|err| (StatusCode::UNAUTHORIZED, err.to_string()).into_response())?;
+
+        if let Some(header) = req.headers().get("Idempotency-Token") {
+            if let Ok(header) = header.to_str() {
+                context.parse_idempotency_token(header);
+            }
+        }
 
         Ok(context)
     }
@@ -64,9 +70,15 @@ where
             .await
             .map_err(|err| err.into_response())?;
 
-        let context = SystemContext::from_token(&config, bearer.token(), addr.ip())
+        let mut context = SystemContext::from_token(&config, bearer.token(), addr.ip())
             .await
             .map_err(|err| (StatusCode::UNAUTHORIZED, err.to_string()).into_response())?;
+
+        if let Some(header) = req.headers().get("Idempotency-Token") {
+            if let Ok(header) = header.to_str() {
+                context.parse_idempotency_token(header);
+            }
+        }
 
         Ok(context)
     }
