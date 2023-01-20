@@ -62,6 +62,8 @@ pub enum AuthError {
     ScopeError,
     #[error("Missing KeyStore")]
     MissingKeyStore,
+    #[error("Invalid Override-Account-UUID header")]
+    InvalidOverrideAccountUUID,
 }
 
 /// Scopes of access
@@ -181,6 +183,7 @@ pub struct UserContext {
     scope: Option<Scope>,
     idempotency_token: Option<Uuid>,
     ip_addr: IpAddr,
+    system: bool,
 }
 
 impl UserContext {
@@ -213,6 +216,8 @@ impl UserContext {
         token: &str,
         ip_addr: IpAddr,
     ) -> Result<UserContext, AuthError> {
+        let mut system = false;
+
         #[cfg(feature = "static-tokens")]
         if let Some(uuid) = config.static_user.get(token) {
             return Ok(UserContext {
@@ -220,6 +225,18 @@ impl UserContext {
                 scope: None,
                 idempotency_token: None,
                 ip_addr,
+                system: false,
+            });
+        }
+
+        #[cfg(feature = "static-tokens")]
+        if let Some(uuid) = config.static_system.get(token) {
+            return Ok(UserContext {
+                account: uuid.clone(),
+                scope: None,
+                idempotency_token: None,
+                ip_addr,
+                system: true,
             });
         }
 
@@ -231,6 +248,7 @@ impl UserContext {
                     scope: None,
                     idempotency_token: None,
                     ip_addr,
+                    system: false,
                 });
             }
         }
@@ -255,6 +273,7 @@ impl UserContext {
                         scope: None,
                         idempotency_token: None,
                         ip_addr,
+                        system: false,
                     });
                 } else {
                     return Err(AuthError::InvalidAuthToken);
@@ -267,11 +286,21 @@ impl UserContext {
             let account = jwt.payload().sub().ok_or(AuthError::PayloadError)?;
             let account = Uuid::parse_str(account).map_err(|_| AuthError::PayloadError)?;
 
+            let scopes = jwt
+                .payload()
+                .get_str("scope")
+                .ok_or(AuthError::PayloadError)?;
+            let scope_vec: Vec<&str> = scopes.split_whitespace().collect();
+            if scope_vec.contains(&"system") {
+                system = true;
+            }
+
             Ok(UserContext {
                 account,
                 scope: None,
                 idempotency_token: None,
                 ip_addr,
+                system,
             })
         } else {
             Err(AuthError::MissingKeyStore)
@@ -291,6 +320,7 @@ impl UserContext {
             ip_addr,
             scope: None,
             idempotency_token,
+            system: false,
         }
     }
 }
@@ -329,6 +359,18 @@ impl<'r> FromRequest<'r> for UserContext {
             Ok(auth) => auth,
             Err(e) => return Outcome::Failure((Status::Unauthorized, e)),
         };
+
+        if auth.system {
+            let header = req
+                .headers()
+                .get_one("Override-Account-UUID")
+                .map(|h| h.to_string());
+            if let Some(header) = header {
+                auth.account = header
+                    .parse()
+                    .err_map(|_| AuthError::InvalidOverrideAccountUUID)?;
+            }
+        }
 
         // get idempotency token
         match req.headers().get_one("Idempotency-Token") {
