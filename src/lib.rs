@@ -366,9 +366,12 @@ impl<'r> FromRequest<'r> for UserContext {
                 .get_one("Override-Account-UUID")
                 .map(|h| h.to_string());
             if let Some(header) = header {
-                auth.account = header
-                    .parse()
-                    .err_map(|_| AuthError::InvalidOverrideAccountUUID)?;
+                auth.account = match header.parse() {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return Outcome::Failure((Status::Unauthorized, AuthError::InvalidOverrideAccountUUID));
+                    }
+                };
             }
         }
 
@@ -553,9 +556,12 @@ impl<'r> FromRequest<'r> for SystemContext {
             .get_one("Override-Account-UUID")
             .map(|h| h.to_string());
         if let Some(header) = header {
-            auth.account = header
-                .parse()
-                .err_map(|_| AuthError::InvalidOverrideAccountUUID)?;
+            auth.account = match header.parse() {
+                Ok(value) => value,
+                Err(error) => {
+                    return Outcome::Failure((Status::Unauthorized, AuthError::InvalidOverrideAccountUUID));
+                }
+            };
         }
 
         // get idempotency token
