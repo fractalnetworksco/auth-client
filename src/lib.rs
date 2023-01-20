@@ -548,6 +548,16 @@ impl<'r> FromRequest<'r> for SystemContext {
             Err(e) => return Outcome::Failure((Status::Unauthorized, e)),
         };
 
+        let header = req
+            .headers()
+            .get_one("Override-Account-UUID")
+            .map(|h| h.to_string());
+        if let Some(header) = header {
+            auth.account = header
+                .parse()
+                .err_map(|_| AuthError::InvalidOverrideAccountUUID)?;
+        }
+
         // get idempotency token
         match req.headers().get_one("Idempotency-Token") {
             Some(token) => {
