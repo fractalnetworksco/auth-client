@@ -28,9 +28,11 @@ mod tests;
 
 /// Expected size for auth tokens.
 const AUTH_TOKEN_LENGTH: usize = 40;
+
 /// Warn about expiring System scope JWTs when valid for less than one week.
 const SYSTEM_CONTEXT_WARNING_THRESHOLD: u64 = 60 * 60 * 24 * 7;
 
+/// Fetch KeyStore from URL
 pub async fn key_store(url: &str) -> Result<KeyStore, JwksError> {
     KeyStore::new_from(url.to_string()).await
 }
@@ -141,6 +143,7 @@ impl AuthConfig {
     }
 
     #[cfg(feature = "insecure-stub")]
+    #[deprecated]
     pub fn with_insecure_stub(self, stub: bool) -> Self {
         AuthConfig {
             keystore: self.keystore,

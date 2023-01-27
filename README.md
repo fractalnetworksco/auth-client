@@ -1,19 +1,23 @@
 # Authentication Client Library
 
-This is a library crate that is used to authenticate incoming requests. It supports different authentication
-mechanisms, including JWT authentication (by fetching and parsing a JWKS that contains keys needed to validate
-the JWT), authentication via making an API call to a dedicated accounts API, hardcoded static authentication tokens
-and disabling authentication altogether and accepting any UUID as a valid token (optional feature, only enabled
-for testing). 
+This is a library crate that is used to authenticate incoming requests. It
+supports different authentication mechanisms, including JWT authentication (by
+fetching and parsing a JWKS that contains keys needed to validate the JWT),
+authentication via making an API call to a dedicated accounts API or hardcoded
+static authentication tokens.
 
-The library distinguishes between user tokens (that represent real user accounts) and system tokens (that represent
-internal administrative accounts). System tokens are usually required for administrative APIs. Accounts are represented
-by UUIDs. It has support for Rocket built-in, but can also be used without it.
+The library distinguishes between user tokens (that represent real user
+accounts) and system tokens (that represent internal administrative accounts).
+System tokens are usually required for administrative APIs. Accounts are
+represented by UUIDs. It has support for Rocket built-in, but can also be used
+without it.
 
-You want to use this library if you want an existing, but opinionated authentication library that is relatively
-flexible in that it can be setup to support different authentication mechanisms, which is quite useful for enabling
-local development (with authentication turned off or done with static tokens) but still being able to deploy to
-production (where JWTs are used, for instance).
+You want to use this library if you want an existing, but opinionated
+authentication library that is relatively flexible in that it can be setup to
+support different authentication mechanisms, which is quite useful for enabling
+local development (with authentication turned off or done with static tokens)
+but still being able to deploy to production (where JWTs are used, for
+instance).
 
 Resources:
 - Documentation: [nightly][rustdoc], [latest release][docs]
@@ -21,8 +25,8 @@ Resources:
 
 ## Examples
 
-The client library needs an instance of `AuthConfig` in order to function. This is where the authentication providers
-can be set up.
+The client library needs an instance of `AuthConfig` in order to function. This
+is where the authentication providers can be set up.
 
 ```rust
 use fractal_auth_client::{AuthConfig, key_store};
@@ -56,9 +60,10 @@ async fn link_create(
 
 Features that can be enabled:
 
-- `static-tokens` turns on support for defining static tokens (enabled by default).
+- `axum` turns on support for Axum.
 - `rocket` turns on support for Rocket.
-- `insecure-stub` enables the insecure-auth option of the `AuthConfig` struct, which bypasses authentication.
+- `static-tokens` turns on support for defining static tokens (enabled by default).
+- **Deprecated**: `insecure-stub` enables the insecure-auth option of the `AuthConfig` struct, which bypasses authentication. Use static tokens instead.
 
 ## License
 
